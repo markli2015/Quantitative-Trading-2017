@@ -2,16 +2,19 @@ Algorithmic Trading Note
 
 
 
-Trading Basic
+Financial Basic
 =============================
 
+
+
+Trading Markets
+=============================
 
 
 
 
 Trading Strategies
 =============================
-
 
 
 
