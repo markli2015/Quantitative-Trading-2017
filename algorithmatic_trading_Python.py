@@ -545,7 +545,380 @@ mydata = quandl.get('WIKI/AAPL.1') # apple stock, only first column
 
 
 
-''
+'Time Series'
 ------------------------
+
+
+######### Datetime objects ############
+# Use 'Pandas' special time series features
+
+- 'DateTime index'
+- 'Time Resampling'
+- 'Time Shifts'
+- 'Rolling and Expanding'
+
+# Create datetime object
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+from datetime import datetime
+
+my_year = 2017
+my_month = 1
+my_day = 2
+my_hour = 13
+my_minute = 30
+my_second = 15
+
+# create a datetime object
+my_date_time = datetime(my_year,my_month,my_day,my_hour,my_minute,my_second) # Unspecified slot default to 0
+my_date_time.day # get day (other objects)
+
+# Create datetime index
+first_two = [datetime(2016,1,1),datetime(2016,1,2)] # python list of datetime objects
+dt_ind = pd.DatetimeIndex(first_two) # convert to datetime index
+# attach index to data
+data = np.random.randon(2,2); cols = ['a','b']
+df = pd.DataFrame(data,dt_ind,cols)
+
+df.index.argmax()
+'1' # latest day 0,1,... -> 1 (2 values)
+df.index.max()
+"Timestamp('2016-01-02 00:00:00')"
+df.index.argmin(); df.index.min() # same above
+
+
+
+
+########### Read in file as time series format ###############
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+# Method 1, read first, convert next
+df = pd.read_csv('xxxx/xxxx.csv')
+df.info() # summarize features in df
+
+df['Date'] = pd.to_datetime(df['Date']) # convert one column in data into datetime
+                                        # can add 'format=strings' to specify datetime
+                                        # like, '%d/%m/%Y'
+df['Date'] = df['Date'].apply(pd.to_datetime) # same above
+df.info() # check 'datetime' object
+df.set_index('Date',inplace=True) # Use datetime as index
+
+# Method 2, read and convert same time
+df = pd.read_csv('xxx/xxxx.csv',index_col='Date',parse_dates=True) # not controlable as above, but if you 
+                                                                   # sure about date format, saving time
+df.info()
+
+
+
+
+############# Resampling ################
+df.resample(rule='A').mean() # rules -- set of all possible time series offset strings
+'Yearly mean'
+df.resample(rule='BQ').mean() # rules -- set of all possible time series offset strings
+'Business Quaterly mean'
+df.resample(rule='A').max()
+'Yearly max'
+
+df.resample('A').apply(custom_func) # Apply selfdefined func
+
+
+
+############# Visualization #############
+df['Close'].resample('A').mean().plot(kind='bar') # Yearly end bar plot
+                                                  # Using pandas visualization on df
+
+
+
+
+########### Time shift ##############
+'some model requires shift time forward or backward for modeling'
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+df = pd.read_csv('xxx/xxxx.csv',index_col='Date',parse_dates=True) 
+df.shift(periods=1) # forward, all shift one index forward, original first = NaN, original last = removed
+df.shift(periods=-1) # backward, all shift one index backward, original first = removed, original last = NaN
+
+df.tshift(freq='M').head() # shift all index to match the time index as end of each month, no data loss, just index changed
+
+
+
+
+############ Pandas Rolling and Expanding ##############
+
+'calculate like rolling mean'; 'daily data is noise, so moving average better'
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+# -- Rolling (wondow average) -- movement
+df = pd.read_csv('xxx/xxxx.csv',index_col='Date',parse_dates=True) 
+df['Open'].plot(figsize=(16,6)) # plot time series
+df.rolling(window=7).mean() # 7 days of moving average (Less noisy) \ > window = > soomth
+'first 6 rows becomes NaN, first 7 = average of first 7 rows, then moving 1 by 1'
+
+# compare two lines
+df['Open'].plot() # plot open price
+df.rolling(window=7).mean()['close'].plot() # plot moving averaged close price
+# add to df, compare two lines
+df['Close 30 days MA'] = df['Close'].rolling(window=30).mean()
+df[['Close 30 days MA','Close']].plot(figszie=(16,6)) # plot two columns in pandas, it automatically add lengend
+
+
+# -- Expanding (culmulative average) -- major trend
+df['Close'].expanding().mean().plot(figsize=(16,6))
+
+
+# -- Bollinger Bands (wider variance large, small variance small)
+'price is high above the upper band, low below the lower band' - # not enecessary a sell or buy signal alone
+# Close 20 moving averafe
+df['Close: 20 Day Mean'] = df['Close'].rolling(20).mean()
+# Upper band = Moving average(20) + 2 * Moving std(20)
+df['Upper'] = df['Close: 20 Day Mean'] + 2*(df['Close'].rolling(20).std())
+# Lower band = Moving average(20) - 2 * Moving std(20)
+df['Lower'] = df['Close: 20 Day Mean'] - 2*(df['Close'].rolling(20).std())
+# Close and plot
+df[['Close','Close: 20 Day Mean','Upper','Lower']].plot(figsize=(16,6))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'Stock Market Analysis -- Example'
+--------------------------------------
+
+########## Getting Data ##############
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+# -------- Getting data
+import pandas_datareader
+import datetime
+import pandas_datareader.data as web
+
+start = datetime.datetime(2012,1,1)
+end = datetime.datetime(2017,1,1)
+
+
+# ------- Getting other companies
+tesla = web.DataReader('TSLA','google',start,end)
+ford = web.DataReader('F','google',start,end)
+gm = web.DataReader('GM','google',start,end)
+
+
+
+
+######### Visualization - Spot Checks ################
+# -- Plot three stocks together in lines to see differences
+tesla['Open'].plot(label='Tesla',figsize=(12,8),title='Opening Prices')
+gm['Open'].plot(label='GM')
+ford['Open'].plot(label='Ford')
+plt.legend()
+# 'From this plot, Tesla may seems more valuable than others but to 
+# get actual pic, we need to look at market cap of this company, not
+# just the stock prices,so simple calculation -- 
+# total money traded = volme X open prices 
+# (100 units, $10 vs 100000 units, $1)
+
+
+# market cap data added
+tesla['Total Traded'] = tesla['Open']*tesla['Volume']
+gm['Total Traded'] = gm['Open']*gm['Volume']
+ford['Total Traded'] = ford['Open']*ford['Volume']
+# plotting 'total traded' against time index
+tesla['Total Traded'].plot(label='Tesla',figsize=(16,8))
+gm['Total Traded'].plot(label='GM')
+ford['Total Traded'].plot(label='Ford')
+plt.legend();
+# 'Tesla' is closer to others in amount of money been traded
+
+
+# check spots of high money traded dates for each, correlated? 
+# What happened that dates? Google it!
+tesla['Total Traded'].argmax()
+
+# -- Plot the volme of stock traded each day
+tesla['Volume'].plot(label='Tesla',figsize=(12,8),title='Volume traded')
+gm['Volume'].plot(label='GM')
+ford['Volume'].plot(label='Ford')
+plt.legend()
+# 'Intereseting to see what happened in those high volume day of trading'
+
+# 'Intereseting to see what happened in those high volume day of trading'
+ford['Volume'].argmax() # Google news on that date for ford
+
+# 'Check how up and down caused by those high volume trading event for ford'
+ford['Open'].plot(figsize=(20,6))
+
+# --- MA plottings MA50, MA200
+gm['MA10'] = gm['Open'].rolling(10).mean()
+gm['MA50'] = gm['Open'].rolling(50).mean()
+gm[['Open','MA50','MA200']].plot(figsize=(16,6))
+
+
+# --- Relationships between stocks
+from pandas.tools.plotting import scatter_matrix
+car_comp = pd.concat([tesla['Open'],gm['Open'],ford['Open']],axis=1)
+car_comp.columns = ['Tesla Open','GM Open','Ford Open']
+scatter_matrix(car_comp,figsize=(8,8),
+               alpha=0.2,hist_kwds={'bins':50}) # alpha - darker = more density
+                                                # hist_kwds - more bins - 50
+# 'trends in diagnose, behavior of changes correlated pair stocks | GM more correlated to ford'
+
+
+# ---- Plot candle sticks plots (short period is better)
+from matplotlib.finance import candlestick_ohlc
+from matplotlib.dates import DateFormatter, date2num, WeekdayLocator, DayLocator, MONDAY
+ford_reset = ford.loc['2017-01'].reset_index() # get all Jan values and reset index
+ford_reset.head()
+ford_reset['date_ax'] = ford_reset['Date'].apply(lambda date: date2num(date))
+ford_reset.head()
+# Create list of tuples
+list_of_cols = ['date_ax','Open','High','Low','Close']
+ford_values = [tuple(vals) for vals in ford_reset[list_of_cols].values] 
+mondays = WeekdayLocator(MONDAY) # Major ticks on the Monday
+alldays = DayLocator() # minor ticks on that days
+weekFormatter = DateFormatter('%b %d') # e.g. Jan 12
+dayFormatter = DateFormatter('%d') # e.g. 12
+# Plotting
+fig, ax = plt.subplots()
+fig.subplots_adjust(bottom=0.2)
+# set index scales
+ax.xaxis.set_major_locator(mondays)
+ax.xaxis.set_minor_locator(alldays)
+ax.xaxis.set_major_formatter(weekFormatter)
+candlestick_ohlc(ax,ford_values,width=0.1,colorup='g',colordown='r')
+
+
+
+
+############ Basic Financial Analysis - Daily Return #############
+# -- Daily Percentage Change
+# * r(t) - return at time t, P(t) - price at time t
+# r(t) = P(t)/P(t-1) - 1 --- If DPCs has a wide dist, more volatile, more reward/risk
+#                        --- If DPCs has a concentrated dist, less volatile, less reward/risk
+tesla['returns_manual'] = (tesla['Close'] / tesla['Close'].shift(1)) - 1
+tesla['returns_auto'] = tesla['Close'].pct_change(1)
+# Which stock is more volatile?
+tesla['returns_auto'] = tesla['Close'].pct_change(1)
+gm['returns_auto'] = gm['Close'].pct_change(1)
+ford['returns_auto'] = ford['Close'].pct_change(1)
+# Plot separately
+tesla['returns_auto'].hist(bins=100)
+gm['returns_auto'].hist(bins=100)
+ford['returns_auto'].hist(bins=100)
+# plot bar plots together
+tesla['returns_auto'].hist(bins=100,label='Tesla',figsize=(10,8),alpha=0.4)
+gm['returns_auto'].hist(bins=100,label='Tesla',figsize=(10,8),alpha=0.4)
+ford['returns_auto'].hist(bins=100,label='Tesla',figsize=(10,8),alpha=0.4)
+plt.legend()
+# Plot density
+# 'See clear' on violatile (Density plot)
+tesla['returns_auto'].plot(kind='kde',label='Tesla',figsize=(10,8))
+gm['returns_auto'].plot(kind='kde',label='Ford',figsize=(10,8))
+ford['returns_auto'].plot(kind='kde',label='GM',figsize=(10,8))
+plt.legend()
+# Plot Boxplot
+# See violatile on box plot
+box_df = pd.concat([tesla['returns_auto'],ford['returns_auto'],gm['returns_auto']],axis=1)
+box_df.columns = ['Tesla','Ford','GM']
+box_df.plot(kind='box')
+
+# (scatter plot on DPCs) See correlation between those 3, see how related the car companies are
+scatter_matrix(box_df,figsize=(8,8),alpha=0.2,hist_kwds={'bins':100})
+# 'Ford correlated to GM, Tesla not quit the same to others 
+
+
+
+
+
+
+########### Basic Financial Analysis - Cumulative return ##############
+# Cumulative return is the aggregated amount 
+# of investment has gain or lost over time, 
+# independent of the period of time involved.
+
+# Why daily returns i going down? Start going down with time
+'Date'   'Daily Return'   '%Daily Return'
+'01'     '10/10 = 1'      '-'
+'02'     '15/10 = 3/2'    '50%'
+'03'     '20/15 = 4/3'    '33%'
+'04'     '25/20 = 5/4'    '20%'
+
+# Daily return is helpful but doesn't give investor immediate insight
+# into the gains he or she had made till date, especially if the stock
+# is very volatile.
+
+# 'Cumulative Return' - above 1 profit, below one you are in loss
+'Date'   'Cumulative Return'   '%Cumulative Return'
+'01'     '10/10 = 1'           '100%'
+'02'     '15/10 = 3/2'         '150%'
+'03'     '20/10 = 2'           '200%'
+'04'     '25/10 = 5/2'         '250%'
+
+# i(i) = (1 + r(t)) * i(t-1)
+tesla['Cumulative Return'] = (1 + tesla['returns_auto']).cumprod()
+ford['Cumulative Return'] = (1 + ford['returns_auto']).cumprod()
+gm['Cumulative Return'] = (1 + gm['returns_auto']).cumprod()
+# '% loss/profit if invest at date No1"
+
+tesla['Cumulative Return'].plot(label="Tesla",figsize=(16,8))
+ford['Cumulative Return'].plot(label="ford",figsize=(16,8))
+gm['Cumulative Return'].plot(label="gm",figsize=(16,8))
+plt.legend()
+# 'overtime, Tesla profit more, then gm, then ford
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'Time Series Modeling - for Trading'
+--------------------------------------
+
+
+
+
+
+
+
 
 
