@@ -914,6 +914,519 @@ plt.legend()
 'Time Series Modeling - for Trading'
 --------------------------------------
 
+'Very tempting to use some of these techniques on financial data,'
+'but sometimes its actually not a good idea.'
+
+- 'Time Series Basics'
+
+- 'Statsmodels Python Library'
+
+- 'ETS Models and Decomposition'
+
+- 'EWMA Models'
+
+- 'ARIMA Models'
+
+
+####### Time Series Basic ###############
+
+'Trend' - # On average the value goes?
+
+########################################
+#
+#  |
+#  |          Stationary
+#  |    
+#  |          /\/\/\/\/\
+#  |Upward /\/          \/\_    Downward
+#  |      /                 \/\
+#  |   /\/                     \
+#  |__/_________________________\________
+#
+# 
+########################################
+
+
+'Seasonality' - # Repeating trends
+
+########################################
+#
+#
+#             Seasonality 
+#    (may still upward, downward plus)
+#
+#     /\/\      /\/\      /\/\
+#    /    \/\  /    \/\  /    \/\
+#   /        \/        \/        \
+#  ____________________________________
+#
+#
+########################################
+
+
+'Cyclical' - # Trends with no set repetition
+
+########################################
+#
+#         No repeat trends - (Financial data)
+#                     /\
+#              ____  /  \
+#         /\  /    \/    \
+#        /  \/            \/\
+#     /\/                    \
+#  __/                        \/\____
+#  ____________________________________
+#
+########################################
+
+
+
+
+
+########### StatsModels #######################
+
+'Most popular Python library used in Python for time series'
+
+'statsmodels.org' # More examples, code
+
+$ pip install statsmodels
+
+import numpy as np
+import statsmodels.api as sm 
+import statsmodels.formula.api as smf
+
+
+# --------- Example ------------ #
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+import statsmodels.api as sm 
+
+df = sm.datasets.macrodata.load_pandas().data # grab data from statsmodel saved in df
+
+indx = pd.Index(sm.tsa.datetools.dates_from_range('1959Q1','2009Q3')) # create time date index
+
+df.index = indx # segment df by indx
+
+df['realgdp'].plot() # plot time series on col: realgdp
+
+gdp_cycle, gdp_trend = sm.tsa.filters.hpfilter(df['realgdp']) # apply hpfilter on df-col:realgdp
+'tuple of two items - each is a series (estimated trend lines)'
+
+df['trend'] = gdp_trend
+
+df[['realgdp','trend']].plot() # plot estimated trend and series together
+df[['realgdp','trend']]['2000-03-31':].plot() # plot estimated trend and series together
+# ------------------------------ #
+
+
+
+
+
+############ ETS Theory ###################
+'ETS Models (Error-Trend-Seasonality)'
+
+- 'Exponential Smoothing'
+- 'Trend Methods Models'
+- 'ETS Decomposition'
+
+'ETS models will take each of those terms for'
+'smoothing and may add them, multiply them, or'
+'even just leave some of them out'
+
+'Time Series Decomposition with ETS - visualizing'
+'the data based off its ETS is a good way to build'
+'an understanding of its behaviour'
+
+############################################
+#
+#                   /\  /\
+#                  /  \/  \/   Observed Seriers
+#         /\  /\  /     
+#        /  \/  \/
+#  _/\/\/  
+#  
+###########################################
+#
+#         
+#                   _______/   Trend
+#         _________/
+# _______/
+#
+###########################################
+#
+#
+#
+# __/\/\_/\/\_/\/\_/\/\_/\/\_  Seasonal
+#
+###########################################
+#
+#                  
+#   /\/\    ____  /\  _____/\  Residuals
+# _/    \  /    \/  \/
+#        \/
+#
+############################################
+
+# ---------- Example Code ----------------- #
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+airline = pd.read_csv('airline_passengers.csv',index_col='Month')
+airline.head() # a series
+
+airline.dropna(inplace=True) # drop na
+airline.index = pd.to_datetime(airline.index) # convert date into date index
+airline.head()
+
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+result = seasonal_decompose(airline['Thousands of Passengers'],model='multiplicative') # model='additive'
+
+result.seasonal.plot() # seasonal componuent
+result.trend.plot() # trend compuent
+result.plot() # plot all compounents
+
+# ----------------------------------------- #
+
+
+
+
+
+
+
+
+
+############# EWMA Model ##################
+'EWMA - Exponentially weighted Moving Averages'
+
+'** Basic SMA (simple moving average) has some weaknesses'
+
+- 'Smaller windows will lead to more noise, rather than signal'
+- 'It will always lag by the size of the window'
+- 'Does not really inform you about possible future behavour,'
+  'all it really does it describe trends in your data'
+- 'Extreme historical values can skew your SMA significantly'
+
+:: 'To help fix some of these issue, we can use an EWMA'
+   'EWMA will allow us to reduce the lag effect from SMA and it'
+   'will put more weight on values that occurred more recently'
+   '(by applyinh more weight to the more recent values, thus the name)'
+
+   'The amount of weight applied to the most recent values will depend on'
+   'the actual parameters used in the EWMA and the number of periods given' 
+   'a window size'
+
+'Parameters' -
+
+- 'Span': 'N-day EW moving average'
+- 'Center of mass': 'Center = (Span-1)/2'
+- 'Half-life': 'period of time for the exponential weight to reduce to one half'
+- 'Alpha': 'smoothing factor'
+
+
+# ------------ Example ------------------- #
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+airline = pd.read_csv('airline_passengers.csv',index_col='Month')
+airline.head() # a series
+
+airline.index
+'not a datetime index yet'
+
+airline.dropna(inplace=True) # drop na
+airline.index = pd.to_datetime(airline.index) # convert date into date index
+airline.head()
+
+# SMA
+airline['6-month-SMA'] = airline['Thousands of Passengers'].rolling(window=6).mean()
+airline['12-month-SMA'] = airline['Thousands of Passengers'].rolling(window=12).mean()
+
+airline.plot() # plot all series 
+
+# EWMA
+airline['EWMA-12'] = airline['Thousands of Passengers'].ewm(span=12).mean()
+
+airline[['Thousands of Passengers','EWMA-12']].plot() # plot together, more weights in recent
+
+# ---------------------------------------- #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############## ARIMA Theory #####################
+
+'However, ARIMA model doesnt work well with historical stock data'
+
+--'Why'-- 'ARIMA assumes only t impacts, however, in finance, human factor impacts'
+          'so it more like a random walk (monti carlo simulation) rather than a '
+          'function of t only'
+
+'ARIMA (Autoregressive integrated Moving Averages)'
+
+- 'Non-seasonal ARIMA'
+- 'Seasonal ARIMA'
+
+'ARIMA models are applied in some cases where data show evidence of'
+'non-stationary, where an initial differencing step (corresponding '
+'to the integrated part of the model) can be applied one or more'
+'times to eliminate the non-stationarity'
+
+
+
+***'<< Non-seasonal >>'***
+
+'ARIMA(p,d,q)' # Seasonal | Non-seasnonal
+
+- 'p': 'Autoregression'
+       'A regression model that utilizes the dependent relationship'
+       'between a current observation and observations over a previous'
+       'period'
+
+- 'd': 'Integration'
+       'Differencing of observations (subtracting an observation from'
+       'an observation at the previous time step) in order to make the'
+       'time series stationary'
+
+- 'q': 'Moving Average'
+       'A model that uses the dependency between an observation and a'
+       'residual error from a moving average model applied to lagged'
+       'observations'
+
+'How to find whether Stationary vs Non-Stationary?'
+
+- 'Stationary - series has constant mean & variance over time'
+                'Allow model to predict mean & variance be the same in future period'
+
+'Dickey-Fuller Test': # Test for stationarity
+'If not stationary -> transform into stationary then evaluate it and define what type'
+'of ARIMA terms you will use' ---> 'Differencing' --> 'Repeat test to see if stationary'
+                                                      'Each differencing at cost of losing a row'
+                                                      'If seasonal, need to diference by season'
+
+
+'Once stationary data achieved' --> 'Choose ARIMA terms'
+'AutoCorrelation Plots (ACF)' | 'Partial Autocorrelation Plots (PACF)'
+
+
+'ACF': 'An autocorrelation plot shows the correlation of the series with itself, lagged'
+       'by X time units' --> 'Y axis the number of time lag, X axis the correlation'
+
+-> "If autocorrelation plot shows positive autocorrelation at the first lag (lag -1)"
+   'then it suggesrs to use the AR terms in relation to the lag'
+
+-> "If the autocorrelation plot shows negative autocorrelation at the first lag, the"
+   "it suggests using MA terms"
+
+'PACF': 'It is the correlation between two variables under the assumption that we know'
+        'and take into account the values of some other set of variables' | 'The partial'
+        'correlation between y and X3 is the correlation between the variables determined'
+        'taking into account how both y and X3 are related to X1 and X2 '
+
+-> "Sharp drop off after lag k in PACF, suggests an AR(k) model should be used"
+-> "If there is a gradual declind, it suggests an MA model"
+
+:: "Identification of AR model is often done with PACF"
+:: "Identification of MA model is often done with ACF"
+
+
+
+***'<< seasonal >>'***
+
+'For seasonal ARIMA, there are additional set of P,D,Q terms'
+
+
+# ------------- Example ----------------- #
+df.plot() # series
+
+time_series = df['Milk inPounds per Cow']
+type(time_series) # time series
+
+time_series.rolling(12).mean().plot(label='mean')
+time_series.rolling(12).std().plot(label='std')
+time_series.plot()
+'clear see if mean, std - stationary?'
+
+decomp = seasonal_decompose(time_series)
+fig = decomp.plot()
+'clear see trend, seasonality'
+
+'[Fuller test] - stationarity'
+from statsmodels.tsa.stattools import adfuller
+result = adfuller(df['Milk inPounds per Cow'])
+
+def adf_check(time_series):
+
+	result = adfuller(time_series)
+	print('Augmented Dicky-fuller Test')
+	labels = ['ADF Test Statistics','P-value','* of lags','Num of observations used']
+
+	for value,label in zip(result, labels):
+		print(label+' : '+ str(value))
+
+	if result[1] <= 0.05:
+		print('Strong evidence against null')
+		print('reject null')
+		print('Data has no unit root and is stationary')
+	else:
+	    print('Weak evidence against null')
+		print('keep null')
+		print('Data has unit root and is NOT stationary')	
+
+
+adf_check(df['Milk inPounds per Cow'])
+'NOT stationary'
+
+# differencing
+df['First Difference'] = df['Milk inPounds per Cow'] - df['Milk inPounds per Cow'].shift(1)
+df['First Difference'].plot()
+
+adf_check(df['First Difference'].dropna())
+'Stationary'
+
+# Second difference
+df['Second Difference'] = df['First Difference'] - df['First Difference'].shift(1)
+df['Second Difference'].plot()
+
+adf_check(df['Second Difference'].dropna())
+'Stationary'
+
+
+
+'[ACF/PACF]'
+from statsmodels.grahics.tsaplots import plot_acf,plot_pacf
+
+# ACF
+fig_first = plot_acf(df['First Difference'].dropna()) # Plot
+# PACF
+fig_first = plot_pacf(df['First Difference'].dropna()) # Plot
+
+# ACF
+from pandas.plotting import autocorrelation_plot
+
+autocorrelation_plot(df['Fisrt Difference'].dropna()) # plot
+
+
+
+'[ARIMA]'
+from statsmodels.tsa.arima_model import ARIMA
+
+help(ARIMA) # get more details
+
+model = sm.tsa.statespace.SARIMAX(df['Milk in Ounds per Cow'],
+	                              order=(0,1,0),
+	                              seasonal_order=(1,1,1,12))
+
+results = model.fit()
+print(results.summary())
+
+results.resid.plot() # residual
+results.resid.plot(kind='kde') # see dist of residual, if 0 
+
+# plot forecast with original
+df['forecast'] = results.predict(start=150, end=100)
+df[['Milk in Pounds per Cow','forecast']].plot(figsize=(12,8))
+
+# Predict future 
+from pandas.tseries.offsets import DataOffset
+future_dates = [df.index[-1] + DataOffset(months=x) for x in range(1,24)] # create future index
+future_df = pf.DataFrame(index=future_dates,columns=df.columns) # create df with original column names, and new index
+final_df = pd.concat([df,future_df]) # combine
+
+final_df['forecast'] = results.predict(start=168,end=192)
+
+final_df[['Milk in Pounds per Cow','forecast']].plot(figsize=(12,8)) # plot historical + forecast series
+
+# --------------------------------------- #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'Python Finance Fundamentals'
+--------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
